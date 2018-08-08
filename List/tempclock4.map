@@ -1,0 +1,30 @@
+RAM Allocation
+Variable                                                          Address   Size
+--------------------------------------------------------------------------------
+strr                                                              0x033B       4
+week_day                                                          0x033F       1
+miladimonth                                                       0x0340      12
+shamsimonth                                                       0x034C      12
+_seed                                                             0x0358       4
+_base_y                                                           0x035C       4
+_lcd_x                                                            0x0360       1
+_lcd_y                                                            0x0361       1
+_lcd_maxx                                                         0x0362       1
+
+EEPROM Allocation
+Variable                                                          Address   Size
+--------------------------------------------------------------------------------
+
+Register Allocation
+Variable                                                          Register  Size
+--------------------------------------------------------------------------------
+mah                                                               R5           1
+rooz                                                              R4           1
+day                                                               R7           1
+month                                                             R6           1
+year                                                              R9           1
+resett                                                            R2.0      1bit
+sal                                                               R10,R11      2
+hour                                                              R8           1
+miin                                                              R13          1
+sec                                                               R12          1

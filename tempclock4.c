@@ -1,0 +1,943 @@
+/*****************************************************
+This program was produced by the
+CodeWizardAVR V2.05.3 Standard
+Project : 
+Version : 
+Date    : 10/23/2017
+Author  : mak
+Company : 
+Comments: 
+
+
+Chip type               : ATmega8
+Program type            : Application
+AVR Core Clock frequency: 1.000000 MHz
+Memory model            : Small
+External RAM size       : 0
+Data Stack size         : 256
+*****************************************************/
+#include <stdlib.h>
+#include <mega8.h>
+#include <i2c.h>
+#include <ds1307.h>
+#include <alcd.h>
+#include <delay.h>
+#include <stdio.h>
+#define DHT22_PIN          PINC.1       //œ— «Ì‰Ã« Å«ÌÂ òÂ œ„«”‰Ã »Â «‰ Ê’· ‘œÂ —« „‘Œ’ ò‰Ìœ
+#define DHT22_PORT         PORTC.1
+#define DHT22_DDR          DDRC.1
+#define up  PINC.2==0
+#define down  PINC.3==0
+#define ok  PINC.4==0
+#define set  PIND.2==0
+#define del  PINC.5==0
+#define DHT22_INPUT_MODE   DHT22_DDR=0;
+#define DHT22_OUTPUT_MODE  DHT22_DDR=1;
+#define DHT22_LOW          DHT22_PORT=0;
+#define DHT22_HIGH         DHT22_PORT=1;
+#define DHT22_READ         DHT22_PIN
+
+// Declare your global variables here
+unsigned char mah=0,rooz=0,day=0,month=0,year=0;
+bit resett=0; 
+int sal=0;
+char strr[4];
+float minT=18,maxT=27,minH=15,maxH=40;
+unsigned char hour,miin,sec=0,week_day;
+unsigned char miladimonth[12]={31,28,31,30,31,30,31,31,30,31,30,31};
+unsigned char shamsimonth[12]={31,31,31,31,31,31,30,30,30,30,30,29};
+flash unsigned char char0[8]={4,14,31,31,0,0,0};  //òœ ›·‘ »«·«
+flash unsigned char char1[8]={0,0,0,31,31,14,4};   //òœ ›·‘ Å«ÌÌ‰
+//flash unsigned char char2[8]={4,14,31,0,31,14,4};
+
+flash unsigned char char3[8]={4,10,0,21,31,0,0,0};  // òœ ‘
+flash unsigned char char4[8]={0,2,0,5,31,0,8,0};  // òœ ‰»
+flash unsigned char char5[8]={0,2,14,14,3,0,0,0};   // òœ Â
+
+flash unsigned char char6[8]={0,4,10,1,31,0,4,0};   // òœ Ã
+flash unsigned char char7[8]={0,0,0,0,31,10,14,0};     //òœ „
+flash unsigned char char8[8]={0,31,14,4,31,0,0,0};   // òœ ⁄
+////////////////////////////////////////////////////////
+void define_char(unsigned char flash *pc,unsigned char char_code){
+    unsigned char i,a;
+    a=(char_code<<3)|0x40;
+    for(i=0;i<8;i++)                              
+        lcd_write_byte(a++,*pc++);
+}
+void weekdayshow(void)
+ {
+  char str_week_day[1];
+    
+  if(rtc_read(0x08) & 0x02){
+    if(week_day <6){
+        sprintf(str_week_day,"%d",week_day);       
+        lcd_putchar(5);
+        lcd_putchar(4);
+        lcd_putchar(3);        
+        lcd_puts(str_week_day);
+    }
+    if(week_day==7){  //shande      
+        lcd_putchar(5);
+        lcd_putchar(4);
+        lcd_putchar(3);
+    }
+    if(week_day==6){     //jome   
+        lcd_putchar(5);
+        lcd_putchar(8);
+        lcd_putchar(7);
+        lcd_putchar(6);
+     } 
+  }else{            
+        if(week_day==1){
+            lcd_puts("sun");
+        }
+        if(week_day==2){
+            lcd_puts("mon");
+        }
+        if(week_day==3){
+            lcd_puts("tue");
+        }
+        if(week_day==4){lcd_puts("wed");}
+        if(week_day==5){lcd_puts("thu");}
+        if(week_day==6){lcd_puts("fri");}
+        if(week_day==7){lcd_puts("sat");}    
+    }
+ }
+
+void styleup(void){
+    lcd_gotoxy(19,1);
+    lcd_puts(" ");
+    delay_ms(50);                    
+    lcd_gotoxy(19,1);
+    lcd_putchar(1);
+    delay_ms(50);
+    lcd_gotoxy(19,1);
+    lcd_puts(" ");
+    delay_ms(50);                    
+    lcd_gotoxy(19,1);
+    lcd_putchar(1);
+    delay_ms(50);
+}
+void styledown(void){
+    lcd_gotoxy(19,0);
+    lcd_puts(" ");
+    delay_ms(50);                    
+    lcd_gotoxy(19,0);
+    lcd_putchar(0);
+    delay_ms(50);
+    lcd_gotoxy(19,0);
+    lcd_puts(" ");
+    delay_ms(50);                    
+    lcd_gotoxy(19,0);
+    lcd_putchar(0);
+    delay_ms(50);
+}
+void timesetshow(char i){
+char strrr[4];
+lcd_gotoxy(0,1);
+if(i==0){sprintf(strrr,"   <%02d>: %02d : %02d ",hour,miin,sec);}
+if(i==1){sprintf(strrr,"    %02d :<%02d>: %02d ",hour,miin,sec);}
+if(i==2){sprintf(strrr,"    %02d : %02d :<%02d> ",hour,miin,sec);}                                        
+lcd_puts(strrr);
+}
+void datesetshow(char i){
+char strrr[4];
+lcd_gotoxy(0,1);
+if(i==0){
+    sprintf(strrr,"<%02u>/ %02u / %02d  ",year,month,day);
+    lcd_puts(strrr);
+    weekdayshow();
+    }
+if(i==1){
+    sprintf(strrr," %02u /<%02u>/ %02d  ",year,month,day);
+    lcd_puts(strrr);
+    weekdayshow();
+    }
+if(i==2){
+    sprintf(strrr," %02u / %02u /<%02d> ",year,month,day);
+    lcd_puts(strrr);
+    weekdayshow();
+        }
+if(i==3){
+    sprintf(strrr," %02u / %02u / %02d ",year,month,day);
+    lcd_puts(strrr);
+    lcd_puts("<");
+    weekdayshow();
+    lcd_puts(">");
+}
+}
+////////////////////////////////////////////////////////
+char leap(char y){
+	if (((((2000+y)%4)==0)&&(((2000+y)%100)!=0))||((((2000+y)%100)==0)&&(((2000+y)%400)==0)))
+	return 1;
+}
+//////////////////////////////////////////////////////////////
+// External Interrupt 0 service routine
+interrupt [EXT_INT0] void ext_int0_isr(void)
+{       
+    char i=0,strr[4];    
+    bit choice=0,choice2=0;
+    char page=0; 
+    while(set);
+    resett=0;
+    #asm("cli")   
+    /*
+    lcd_clear();
+    lcd_gotoxy(0,0);       
+    lcd_puts("setting.");
+    delay_ms(350);
+    lcd_puts(".");
+    delay_ms(350);
+    lcd_puts(".");
+    delay_ms(350);
+    lcd_puts(".");
+    delay_ms(300);  
+    lcd_clear(); 
+    */
+    define_char(char0,0);   //›·‘ »«·«
+    define_char(char1,1);   //›·‘ Å«ÌÌ‰    		
+    while(!set){ 
+    //choice 0=time/ 1=date / 2=reminder / 3=temp&hum
+    //page 1&2           
+        lcd_clear(); 
+        delay_ms(30);
+        lcd_gotoxy(0,0);              
+            if(page==0){                                                 
+                lcd_puts("1.Time <            ");                 
+                lcd_puts("2.Date             ");
+                lcd_putchar(1);                
+                }
+            if(page==1){                                  
+                lcd_puts("1.Time             ");
+                lcd_putchar(0);
+                lcd_puts("2.Date <           ");
+                lcd_putchar(1);                                    
+                }
+            if(page==2){                                                                                             
+                lcd_puts("3.Temp&Hum <       "); 
+                lcd_putchar(0);                              
+                }
+                
+        while(!up && !down && !ok && !set);
+        if(down){
+            while(down);
+            page++;
+            if(page==3){
+                styledown();
+                page=2;
+            }            
+        } 
+        
+        if(up){     
+            while(up);
+            page-=1;           
+            if(page == 255){                
+                styleup();
+                page=0;
+            }            
+        } 
+                         
+        if(ok){
+            while(ok); 
+            if(page==0){ // ‰ŸÌ„ ”«⁄  Ê ‰Ê⁄
+                delay_ms(50);
+                choice=0;   
+                while(!set){ 
+                    lcd_gotoxy(0,0);                                                                   
+                    if(choice==0){                                    
+                        lcd_puts("1.Set Time  <       ");                                    
+                        lcd_puts("2.Time Type        ");
+                        lcd_putchar(1);
+                    }else{                                                                                                                                                                                                                       
+                        lcd_puts("1.Set Time         ");
+                        lcd_putchar(0); 
+                        lcd_puts("2.Time Type <       ");                                    
+                    }
+                    while(!ok && !up && !down && !set);
+                    if(up){
+                        while(up);
+                        if(choice==0)
+                            styleup();
+                        else
+                           choice=0;                         
+                    }
+                            
+                    if(down){
+                        while(down);
+                        if(choice==1)
+                            styledown();
+                        else
+                            choice=1;                        
+                    }
+                    if(ok){
+                        while(ok);
+                        if(choice==0){// ‰ŸÌ„ “„«‰
+                            rtc_get_time(&hour,&miin,&sec); 
+                            i=0;                                           
+                            lcd_clear();
+                            lcd_gotoxy(0,0);
+                            lcd_puts("     Set Time :    ");                                                                                                                           
+                            while(!ok){ 
+                                timesetshow(i);                                                                               
+                                while(!up && !down && !set && !ok);
+                                if(up){                                                                                        
+                                    switch (i) {
+                                        case 0:   // »« „ €Ì— ¬Ì ‰‘«‰ „Ì œÂÌ„ òœ«„ Ìò «“ „Ê·›Â Â«Ì “„«‰  €ÌÌ— ŒÊ«Âœ ò—œ        
+                                          hour++;
+                                          if(hour==24)
+                                             hour=0;
+                                          timesetshow(i);                                                                                                        
+                                          delay_ms(700);
+                                          while(up){
+                                            hour++;
+                                            if(hour==24)
+                                               hour=0;
+                                            timesetshow(i);                                                        
+                                            delay_ms(130);
+                                          }
+                                          break;
+                                                    
+                                        case 1:           
+                                          miin++;
+                                          if(miin==60)
+                                            miin=0;
+                                          timesetshow(i);                                                                                                        
+                                          delay_ms(700);
+                                          while(up){
+                                            miin++;
+                                            if(miin==60)
+                                                miin=0;
+                                            timesetshow(i);
+                                            delay_ms(130);
+                                          }
+                                          break;
+                                        case 2:           
+                                          sec++;
+                                          if(sec==60)
+                                            sec=0;
+                                          timesetshow(i);
+                                          delay_ms(700);
+                                          while(up){
+                                            sec++;
+                                            if(sec==60)
+                                                sec=0;
+                                            timesetshow(i);
+                                            delay_ms(130);
+                                          }
+                                          break;
+                                    }; 
+
+                                }
+                                        
+                                if(down){                                            
+                                            
+                                    switch (i) {
+                                        case 0:           
+                                            hour--;
+                                            if(hour==255)
+                                                hour=23;
+                                            timesetshow(i);
+                                            delay_ms(700);
+                                            while(down){
+                                                hour--;
+                                                if(hour==255)
+                                                    hour=23;
+                                                timesetshow(i);
+                                                delay_ms(130);
+                                            }
+                                            break;                                                    
+                                        case 1:           
+                                            miin--;
+                                            if(miin==255)
+                                                miin=59;
+                                            timesetshow(i);                                                     
+                                            delay_ms(700);
+                                            while(down){
+                                                miin--;
+                                                if(miin==255)
+                                                    miin=59;
+                                                timesetshow(i);                                                        
+                                                delay_ms(130);
+                                            }
+                                            break;
+                                        case 2:           
+                                            sec--;
+                                            if(sec==255)
+                                                sec=59;
+                                            timesetshow(i); 
+                                            delay_ms(700);
+                                            while(down){
+                                                sec--;
+                                                if(sec==255)
+                                                    sec=59;
+                                                timesetshow(i);                                                        
+                                                delay_ms(130);
+                                            }
+                                            break;
+                                    }; 
+
+                                }
+                                        
+                                if(set){
+                                    while(set);
+                                    i++;
+                                    if(i==3)
+                                        i=0;                                            
+                                }                                        
+                            }
+                            while(ok); 
+                            rtc_set_time(hour,miin,sec);                                                                 
+                        }else{// ‰ŸÌ„ ‰Ê⁄ “„«‰ 24/12
+                            choice2=0;
+                            while(!ok){
+                                lcd_clear();
+                                lcd_gotoxy(0,0);
+                                lcd_puts("clock mode:24h/12h?");
+                                lcd_gotoxy(0,1);                                        
+                                if(rtc_read(0x08) & 0x01)
+                                    lcd_puts("    <24h>   12h     ");
+                                else
+                                    lcd_puts("     24h   <12h>    ");                                                                                
+                                while(!ok & !set);
+                                if(set){
+                                    while(set);                                            
+                                    if(rtc_read(0x08) & 0x01)
+                                        rtc_write(0x08,rtc_read(0x08) & 0xFE);
+                                    else
+                                        rtc_write(0x08,rtc_read(0x08) | 0x01);
+                                }                                                                                
+                            }
+                            while(ok);                                    
+                        }                        
+                    }
+                }
+                while(set);
+            }
+            if(page==1){//set date & type  
+                lcd_clear();
+                choice=0;
+                delay_ms(50);                
+                while (!set){ 
+                    lcd_gotoxy(0,0);
+                    if(choice==0){
+                        lcd_puts("1.Date Type <       ");
+                        lcd_puts("2.Set Date         ");
+                        lcd_putchar(1);
+                    }else{
+                        lcd_puts("1.Date Type        ");
+                        lcd_putchar(0);
+                        lcd_puts("2.Set Date  <       ");
+                    }
+                    while(!ok && !up && !down && !set);
+                    if(up){
+                        while(up);
+                        if(choice==0)
+                            styleup();
+                        else
+                           choice=0;                         
+                    }
+                            
+                    if(down){
+                        while(down);
+                        if(choice==1)
+                            styledown();
+                        else
+                            choice=1;                        
+                    }
+                    if(ok){
+                        while(ok);
+                        if(choice==0){  // date type
+                            while(!ok){ 
+                                lcd_clear();
+                                lcd_gotoxy(1,0);
+                                lcd_puts("date type?");
+                                lcd_gotoxy(0,1);                                        
+                                if(rtc_read(0x08) & 0x02)
+                                    lcd_puts(" <shamsi>    miladi ");
+                                else
+                                    lcd_puts("  shamsi    <miladi>");                                 
+                                while(!ok && !set);
+                                if(set){
+                                    while(set);                                            
+                                    if(rtc_read(0x08) & 0x02)
+                                        rtc_write(0x08,rtc_read(0x08) & 0xFD);
+                                    else
+                                        rtc_write(0x08,rtc_read(0x08) | 0x02);                                    
+                                }                                 
+                            }
+                            while(ok);
+                        }else{      // set date
+						    rtc_get_date (&week_day,&day,&month,&year);
+							i=0;
+							if(rtc_read(0x08) & 0x02){
+										//parsi set date
+							}else{
+							    //english set date
+                                lcd_clear();
+                                lcd_gotoxy(0,0); 
+                                lcd_puts("     Set Date :     ");
+								while(!ok){                                    
+									
+                                    datesetshow(i);
+                                    while(!ok && !set && !up && !down);
+                                    if(set){
+                                        while(set);
+                                        i++;
+                                        if(i==4)
+                                            i=0;
+                                    }
+                                    if(up){
+                                        if(i==0){
+                                            year++;
+                                            if(year==100)
+                                                year=0;
+                                            datesetshow(i);
+                                            delay_ms(500);
+                                            while(up){
+                                                year++;
+                                                if(year==100)
+                                                    year=0;
+                                                datesetshow(i);
+                                                delay_ms(100);
+                                            }
+                                            if(leap(year))
+                                                miladimonth[1]=29;
+                                            else
+                                                miladimonth[1]=28;
+                                        }
+                                        if(i==1){
+                                            month++;
+                                            if(month==13)
+                                                month=1;
+                                            datesetshow(i);
+                                            delay_ms(500);
+                                            while(up){
+                                                month++;
+                                                if(month==13)
+                                                    month=1;
+                                                datesetshow(i);
+                                                delay_ms(100);
+                                            }
+                                        }
+                                        if(i==2){
+                                            day++;
+                                            if(day>miladimonth[month])
+                                                day=1;
+                                            datesetshow(i);
+                                            delay_ms(500);
+                                            while(up){
+                                                day++;
+                                                if(day>miladimonth[month])
+                                                    day=1;
+                                                datesetshow(i);
+                                                delay_ms(100);
+                                            }
+                                        }
+                                        if(i==3){
+                                            week_day++;                                           
+                                            if(week_day==8)
+                                                week_day=1;
+                                            datesetshow(i);
+                                            delay_ms(500);
+                                            while(up){
+                                                week_day++;
+                                                if(week_day==8)
+                                                    week_day=1;
+                                                datesetshow(i);
+                                                delay_ms(100);
+                                            }
+                                        }
+                                    }
+                                    if(down){
+                                        if(i==0){}
+                                        if(i==1){}
+                                        if(i==2){}
+                                        if(i==3){}
+                                    }                                
+								}
+                                rtc_set_date(week_day,day,month,year);
+							}                                     
+                            while(ok);        
+                        }
+                    }
+                }
+                while(set);
+            }
+            if(page==2){ // ‰ŸÌ„ œ„« Ê —ÿÊ» 
+            }                                                          
+        }        
+    }
+    while(set);
+#asm("sei")    
+}
+
+///////////////////////////////////////////////////
+char dht22(float *temp,float *humi)
+{
+int Temp=0,Humi=0;
+char check=0;
+unsigned char temppart1,temppart2,humipart1,humipart2,count=0;
+int data[40];
+char i=0;
+DDRC.0=0;
+PORTC.0=0;
+ for (i=0;i<41;i++){
+    data[i]=0;
+ }
+DHT22_INPUT_MODE
+count=0;
+DHT22_LOW // ”Ìê‰«· ‘—Ê⁄ »—«Ì Ì„ „Ì·Ì À«‰ÌÂ
+DHT22_OUTPUT_MODE
+delay_us(1100);
+//DHT22_HIGH
+lcd_gotoxy(2,0);
+DHT22_INPUT_MODE
+// »Ì”  Ê ‘‘ „Ìò—ÊÀ«‰ÌÂ »—«Ì ¬“«œ ‘œ‰ »«”
+ do{    
+    if(count>20)           
+        return 0;     
+    count++;
+    delay_us(2);
+ }while(DHT22_READ);
+count=0;
+// Â‘ «œ „Ìò—ÊÀ«‰ÌÂ ”Ìê‰«· Å«”Œ «“ ÿ—› ”‰”Ê— »Â ”ÿÕ Ìò „‰ÿﬁÌ
+ do{ 
+    if(count>45)       
+        return 0;        
+    count++;
+    delay_us(2);
+ }while(!DHT22_READ);
+count=0;
+// Â‘ «œ „Ìò—ÊÀ«‰ÌÂ ”Ìê‰«· Å«”Œ ”‰”Ê— »« ”ÿÕ ’›—
+ do{  
+    if(count>45)               
+        return 0;        
+    count++;
+    delay_us(2);
+ }while(DHT22_READ);
+ count=0;
+// ŒÊ«‰œ‰ »Ì  Â«Ì œ«œÂ
+// Õ·ﬁÂ «Ê· »—«Ì Å‰Ã«Â „Ìò—ÊÀ«‰ÌÂ ”ÿÕ „‰ÿﬁÌ ’›— 
+// òÂ œ— »Ì‰ ”ÿÕ Â«Ì „‰ÿﬁÌ Ìò òÂ œ—Ê«ﬁ⁄ »Ì  Â«Ì
+// œ«œÂ «‰œ
+// Õ·ﬁÂ œÊ„ –ŒÌ—Â »Ì  Â«Ì œ«œÂ
+// «ê— 70 À«‰ÌÂ ÿÊ· »ò‘Â Ì⁄‰Ì Ìò Ê 26 „Ìò—ÊÀ«‰ÌÂ Â„ ’›—
+for(i=0; i<40; i++)
+    {
+     do{
+        if(count>33)                  
+            return 0;        
+        count++;
+        //delay_us(1);
+     }while(!DHT22_READ);
+
+     count=0;
+     do{
+        if(count>40)            
+            return 0;        
+        count++;
+        delay_us(2);
+     }while(DHT22_READ);
+     data[i]=count;
+     count=0;
+    }
+/// çÊ‰ ”‰”Ê— «» œ« »““ê —Ì‰ »Ì  —« „Ì ›—” œ 
+// ¬‰ Â« —« »—⁄ò” „Ì ò‰Ì„  « »Â ’Ê—  ⁄«œÌ Ì« ‰—„«· œ— ¬Ì‰œ 
+ for(i=0;i<16;i++){  // for humidity
+    if(data[i]>6){
+        Humi |= (1<<(15-i));// »—⁄ò” ò—œ‰ »Ì  Â«
+    }
+ }
+ for (i=0;i<16;i++){    // for temperature
+    if(data[16+i]>6){
+        Temp |= (1<<(15-i));
+    }
+ }
+ for (i=0;i<8;i++){    // for check bit
+    if(data[32+i]>6){
+        check |= (1<<(7-i));
+    }
+ }
+temppart1=Temp>>8;
+temppart2=Temp & 0xFF;
+humipart1=Humi>>8;
+humipart2=Humi & 0xFF;
+*humi=(((float)Humi)/10.0);
+ if(Temp & 0x8000){  
+    Temp=(Temp&0x7FFF); 
+    *temp=(((float)Temp)/10.0*(-1));
+ }else{
+    *temp=(((float)Temp)/10.0);
+ }
+if(((temppart1+temppart2+humipart1+humipart2)&0xFF) == check)
+    return 1;    
+return 0;
+}
+//////////////////////////////////////////////////
+
+void miladitoshamsi(unsigned char dm,unsigned char mm,unsigned char ym){
+    
+    unsigned char i=0;
+    int sumdaymiladi=0,sumdayshamsi=0;
+    sal=0,rooz=0;mah=1;
+    if (leap(ym))
+        miladimonth[1]=29; /// the year is leep
+    else	
+        miladimonth[1]=28;  /// the year is not leap
+    for (i=0;i<mm-1;i++){
+        sumdaymiladi += miladimonth[i];
+    } 
+    i=0;
+    sumdaymiladi += dm;
+    if(sumdaymiladi<=79){
+        sal=(ym+2000)-622;
+        if (leap(ym-1))
+        {
+            sumdayshamsi=sumdaymiladi+287;
+            shamsimonth[11]=30;
+        }
+        else
+        {
+            sumdayshamsi=sumdaymiladi+286;
+            shamsimonth[11]=29;
+        }
+    }else{
+        sal=(ym+2000)-621;
+        sumdayshamsi=sumdaymiladi-79;
+    }
+    if (sumdayshamsi<=186 && sumdayshamsi>31){
+        while(sumdayshamsi>31){            
+            sumdayshamsi-=shamsimonth[i];
+            mah++;
+            i++;
+        }
+    }else{
+        while(sumdayshamsi>30){                                         
+            sumdayshamsi-=shamsimonth[i];
+            mah++;
+            i++;
+        }
+    }
+	rooz=sumdayshamsi;
+}
+////////////////////////////////////////////////
+/*
+void shamsitomiladi(unsigned char dsh,unsigned char msh,int ysh){
+    unsigned char i=0;
+    int sumdaymiladi=0,sumdayshamsi=0,ym;
+    //sal=0,rooz=0;mah=1;
+	for (i=0; i<msh-1;i++){
+		sumdayshamsi+=shamsimonth[i];
+	}
+	sumdayshamsi+=dsh;
+    if(sumdayshamsi<=286){
+        ym=ysh+621;
+        if(((((ysh+622)%4)==0)&&(((ysh+622)%100)!=0))||((((ysh+622)%100)==0)&&(((ysh+622)%400)==0)) ||((((ysh+621)%4)==0)&&(((ysh+621)%100)!=0))||((((ysh+621)%100)==0)&&(((ysh+621)%400)==0))){
+		    sumdaymiladi=sumdayshamsi+80; ///chert
+        }else{
+            sumdaymiladi=sumdayshamsi+79;
+        }
+        
+    }
+	if(sumdayshamsi>=289){
+        ym=ysh+622;
+        if(((((ysh+621)%4)==0)&&(((ysh+621)%100)!=0))||((((ysh+621)%100)==0)&&(((ysh+621)%400)==0))){
+            sumdaymiladi=sumdayshamsi-287;  
+        }else{
+            sumdaymiladi=sumdayshamsi-286;
+        }   /////
+    }
+    
+    if(sumdayshamsi==287){
+		if (((((ysh+621)%4)==0)&&(((ysh+621)%100)!=0))||((((ysh+621)%100)==0)&&(((ysh+621)%400)==0))){
+			ym=ysh+621;
+			sumdaymiladi=sumdayshamsi+79;
+		}else{
+			ym=ysh+622;
+			sumdaymiladi=sumdayshamsi-286;
+		}
+	}
+    if(sumdayshamsi==288){
+		if (((((ysh+621)%4)==0)&&(((ysh+621)%100)!=0))||((((ysh+621)%100)==0)&&(((ysh+621)%400)==0))){
+			ym=ysh+622;
+			sumdaymiladi=sumdayshamsi-287;
+		}else{
+			ym=ysh+622;
+			sumdaymiladi=sumdayshamsi-286;
+		}
+	}
+    
+	if ((((ym%4)==0)&&((ym%100)!=0))||(((ym%100)==0)&&((ym%400)==0))){
+		miladimonth[1]=29;
+	}else{
+		miladimonth[1]=28;
+	}
+	i=0;
+	month=1;
+	while(sumdaymiladi>31){            
+        sumdaymiladi-=miladimonth[i];
+        month++;
+        i++;
+    }
+	
+	if ((((ym%4)==0)&&((ym%100)!=0))||(((ym%100)==0)&&((ym%400)==0))){
+		if (i==1 && sumdaymiladi>29){
+			month++;
+			sumdaymiladi-=miladimonth[1];
+		}
+	}else{
+		if ((i==1 && sumdaymiladi>28)|| ((i==3 || i==5 || i==8 || i==10) && sumdaymiladi>30)){
+			if(i==1){
+				month++;
+				sumdaymiladi-=miladimonth[1];
+			}
+			if(i==3 || i==5 || i==8 || i==10){
+				month++;
+				sumdaymiladi-=miladimonth[3];
+			}
+		}
+	}
+	day=sumdaymiladi;
+    year=(ym%10)+(((ym/10)%10)*10);	
+}
+////////////////////////////////////////////////
+*/
+
+void main(void)
+{
+char humidity[4],temperature[4],str_date[4];//str_week_day[1];
+char controlbyte;
+bit pmam;
+float temp,humi;
+{
+
+
+PORTD=0x38;
+DDRD.2=0;
+//DDRD.3=0;DDRD.4=0;
+
+// Timer/Counter 0 initialization
+// Clock source: System Clock
+// Clock value: Timer 0 Stopped
+// External Interrupt(s) initialization
+// INT0: On
+// INT0 Mode: Any change
+// INT1: Off
+GICR|=0x40;
+MCUCR=0x01;
+GIFR=0x40;
+
+// Analog Comparator initialization
+// Analog Comparator: Off
+// Analog Comparator Input Capture by Timer/Counter 1: Off
+ACSR=0x80;
+SFIOR=0x00;
+
+// ADC initialization
+// ADC disabled
+ADCSRA=0x00;
+// I2C Bus initialization
+// I2C Port: PORTD
+// I2C SDA bit: 1
+// I2C SCL bit: 0
+// Bit Rate: 100 kHz
+// Note: I2C settings are specified in the
+// Project|Configure|C Compiler|Libraries|I2C menu.
+i2c_init();
+
+// DS1307 Real Time Clock initialization
+// Square wave output on pin SQW/OUT: Off
+// SQW/OUT pin state: 0
+rtc_init(0,0,0);
+
+// Alphanumeric LCD initialization
+// Connections are specified in the
+// Project|Configure|C Compiler|Libraries|Alphanumeric LCD menu:
+// RS - PORTB Bit 0
+// RD - PORTB Bit 1
+// EN - PORTB Bit 2
+// D4 - PORTB Bit 4
+// D5 - PORTB Bit 5
+// D6 - PORTB Bit 6
+// D7 - PORTB Bit 7
+// Characters/line: 20
+
+  #asm("sei") 
+}  
+  lcd_init(20);       
+  rtc_get_time(&hour,&miin,&sec);
+  if (sec>61){
+    rtc_set_time(8,0,0);
+    rtc_set_date(2,12,12,2017);
+    rtc_write(0x08,0x00);
+  } 
+  rtc_write(0x08,0x00);
+    define_char(char3,3);
+    define_char(char4,4);
+    define_char(char5,5);
+    define_char(char6,6);
+    define_char(char7,7);
+    define_char(char8,8); 
+    controlbyte=rtc_read(0x08);    
+   
+while(1)
+ {   
+               
+    while(resett){
+        if(sec==30 || sec==0)
+            resett=0;    
+        rtc_get_time(&hour,&miin,&sec);
+        if((controlbyte & 0x01)==0){
+            if(hour>12){
+                pmam=1;
+                hour-=12;
+            }else{
+                pmam=0;
+            }
+        }         
+        sprintf(strr,"%02u:%02u:%02d",hour,miin,sec);
+        lcd_gotoxy(0,0);
+        lcd_puts(strr);
+        if(pmam && (controlbyte & 0x01)==0 )
+            lcd_puts(" PM");
+        if(!pmam && (controlbyte & 0x01)==0 )         
+            lcd_puts(" AM");
+         
+        delay_ms(900);   
+    }
+    resett=1;
+    lcd_clear();
+    controlbyte=rtc_read(0x08);    
+    rtc_get_date (&week_day,&day,&month,&year);
+    year%=100;    
+    if(controlbyte & 0x02){       
+		miladitoshamsi(day,month,year); 
+        sal%=100;
+        sprintf(str_date,"%02u/%02u/%02d ",sal,mah,rooz);
+    }else{
+        sprintf(str_date,"%02u/%02u/%02d ",year,month,day);        
+    } 
+    lcd_gotoxy(0,1);
+    lcd_puts(str_date); 
+    weekdayshow();
+  
+    if(dht22(&temp,&humi))
+    {
+        ftoa(temp,1,temperature); 
+        lcd_gotoxy(14,0);
+        lcd_puts("T:"); 
+        lcd_puts(temperature);                       
+        ftoa(humi,1,humidity);                                                                
+        lcd_gotoxy(14,1); 
+        lcd_puts("H:");
+        lcd_puts(humidity);
+    }/*
+    else       
+    {
+        lcd_clear();     
+        lcd_gotoxy(0,0);
+        lcd_putsf("errorA");
+        delay_ms(1000);
+    } */ 
+ }
+}

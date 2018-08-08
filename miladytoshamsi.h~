@@ -1,0 +1,42 @@
+void miladitoshamsi(unsigned char *dm,unsigned char *mm,unsigned char *ym){
+    unsigned char miladimonth[12]={31,28,31,30,31,30,31,31,30,31,30,31}
+    unsigned char shamsimonth[12]={31,31,31,31,31,31,30,30,30,30,30,29}
+    unsigned char i=0;
+    int sumdaymiladi=0,sumdayshamsi=0;
+    if (((((2000+ym)%4)==0)&&(((2000+ym)%100)!=0))||((((2000+ym)%100)==0)&&(((2000+ym)%400)==0)))
+        miladimonth[1]=29; /// the year is leep
+    else	
+        miladimonth[1]=28;  /// the year is not leap
+    for (i=0;i<mm-1;i++){
+        sumdaymiladi += miladimonth[i];
+    } 
+    i=0;
+    sumdaymiladi += dm;
+    if(sumdaymiladi<=79){
+        ysh=(ym+2000)-622;
+        if (((((2000+ym-1)%4)==0)&&(((2000+ym-1)%100)!=0))||((((2000+ym-1)%100)==0)&&(((2000+ym-1)%400)==0)))
+        {
+            sumdayshamsi=sumdaymiladi+287;
+            shamsimonth[11]=30;
+        }
+        else
+        {
+            sumdayshamsi=sumdaymiladi+286;
+            shamsimonth[11]=29;
+        }
+    }else{
+        ysh=(ym+2000)-621;
+        sumdayshamsi=sumdaymiladi-79;
+    }
+    if (sumdayshmsi>186){
+        do{
+            i++;
+            shamsisumday-=shamsimonth[i];
+        }while(shamsisumday>30)
+    }else{
+        do{
+            i++;                             
+            shamsisumday-=shamsimonth[i];
+        }while(sumdayshamsi>31)
+    }
+}
